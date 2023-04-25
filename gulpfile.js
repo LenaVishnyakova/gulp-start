@@ -1,62 +1,71 @@
-const {src, dest, watch, parallel, series} = require('gulp');
+import gulp from 'gulp';
 
-const scss = require('gulp-sass')(require('sass'));
-const concat = require('gulp-concat');
-const uglify = require('gulp-uglify-es').default;
-const browserSync = require('browser-sync').create();
-const autoprefixer = require('gulp-autoprefixer');
-const clean = require('gulp-clean');
+import dartSass from 'sass';
+import gulpSass from 'gulp-sass';
+const scss = gulpSass(dartSass);
+
+import concat from 'gulp-concat';
+import terser from 'gulp-terser';
+import browser from 'browser-sync';
+import autoprefixer from 'gulp-autoprefixer';
+import {deleteAsync} from 'del';
 
 
-function styles() {
-    return src('app/scss/style.scss')
+export const styles = () => {
+    return gulp.src('app/scss/style.scss')
     .pipe(autoprefixer({overrideBrowserslist: ['last 10 versions']}))
     .pipe(concat('style.min.css'))
     .pipe(scss({outputStyle: 'compressed'}))
-    .pipe(dest('dist/css'))
-    .pipe(browserSync.stream())
+    .pipe(gulp.dest('dist/css'))
+    .pipe(browser.stream())
 }
 
-function html() {
-    return src('app/*.html')
-    .pipe(dest('dist'))
+const html = () => {
+    return gulp.src('app/*.html')
+    .pipe(gulp.dest('dist'))
 }
 
-function scripts() {
-    return src('app/js/*.js')
+const scripts = () => {
+    return gulp.src('app/js/*.js')
     .pipe(concat('main.min.js'))
-    .pipe(uglify())
-    .pipe(dest('dist/js'))
-    .pipe(browserSync.stream())
+    .pipe(terser())
+    .pipe(gulp.dest('dist/js'))
+    .pipe(browser.stream())
 }
 
-function copyImages() {
-    return src('app/images/*.{jpg, png, svg}')
-    .pipe(dest('dist/images'))
+const copyImages = () => {
+    return gulp.src('app/images/*.{jpg, png, svg}')
+    .pipe(gulp.dest('dist/images'))
 }
 
-function cleanDist() {
-    return src('dist')
-    .pipe(clean())
+const cleanDist = () => {
+    return deleteAsync(['dist']);
 }
 
-function browsersync() {
-    browserSync.init({
+const browserSync = (done) => {
+    browser.init({
         server: {
-            baseDir: "dist/"
-        }
-    });
+          baseDir: 'dist'
+        },
+        cors: true,
+        notify: false,
+        ui: false,
+      });
+
+      done();
 }
 
-function reload() {
-    browserSync.reload();
+const reload = (done) => {
+    browser.reload();
+    done();
 }
 
-function watching() {
-    watch(['app/scss/*.scss'], series(styles))
-    watch(['app/js/*.js'], series(scripts))
-    watch(['app/*.html'], series(html, reload))
+const watching = (done) => {
+    gulp.watch(['app/scss/style.scss'], styles)
+    gulp.watch(['app/*.html'], gulp.series(html, reload))
+    gulp.watch(['app/js/*.js'], scripts)
+
+    done();
 }
 
-
-exports.default = series(cleanDist, copyImages, parallel(styles, html, scripts), series(browsersync, watching));
+export default gulp.series(cleanDist, copyImages, gulp.parallel(styles, html, scripts), gulp.series(browserSync, watching));
